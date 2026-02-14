@@ -1,0 +1,223 @@
+Aqui vai — um prompt completo para criar o OrçaPro do zero no Replit. Copia tudo e cola:
+
+Create a full web application called OrçaPro — an AI-powered construction quoting tool for the Portuguese and Luxembourg markets. This is a bilingual (Portuguese/French) SaaS application where construction companies create professional quotes for their clients. Use Next.js with React, PostgreSQL database with Prisma ORM, and Tailwind CSS for styling. The app must be mobile-first since builders use phones on job sites.
+BRANDING: Name is "OrçaPro", dark navy header bar (#1e293b), white background, blue (#2563EB) for primary buttons, green for success, red for delete. Clean professional design. Logo shows a hexagonal icon with "OrçaPro" text.
+AUTHENTICATION: Full auth system with email/password registration and login. Each user has their own company account with separate data. After login, redirect to dashboard. Include logout button in sidebar.
+BILINGUAL SYSTEM: Toggle button PT/FR visible on every page. Portuguese is default. All labels, buttons, placeholders, and system text must switch between Portuguese and French. Content created by users (quote descriptions, notes) stays in whatever language the user typed.
+DATABASE SCHEMA — create these tables:
+Company: id, name, address, nif (tax number), email, phone, default_iva (default 17 for Luxembourg), currency (default €), default_payment_conditions (text), default_validity_days (default 30), default_execution_timeframe (text), default_margin_percentage (default 100), quote_prefix (default 'Q'), logo_url, created_at. One company per user account.
+Materials: id, company_id, name, category (enum: Carrelage/Cerâmica, Peinture/Tintas, Colles et Mortiers/Cimentos, Étanchéité/Impermeabilização, Sols/Pavimentos, Plomberie/Canalização, Électricité/Eletricidade, Quincaillerie/Ferragens, Isolation/Isolamento, Bois/Madeiras, Autre/Outros), unit (m², un, kg, ml, vg, L, m), cost_price, sell_price, supplier (optional), reference (optional), created_at.
+Labor: id, company_id, name, trade, unit (m², hour, vg, un, ml), price_lux, price_pt, created_at.
+Templates: id, company_id, name, is_system_template (boolean), created_at.
+TemplateSections: id, template_id, name, sort_order.
+TemplateItems: id, section_id, description, unit, default_quantity, default_unit_price, item_type (material or labor), created_at.
+Quotes: id, company_id, quote_number (auto-generated Q-YYYY-NNN), client_name, client_email, client_phone, client_address, status (enum: draft, sent, accepted, rejected), notes, payment_conditions, validity_days, execution_timeframe, discount_percentage (default 0), iva_rate (default 17), sent_date, accepted_date, created_at, updated_at.
+QuoteSections: id, quote_id, name, sort_order.
+QuoteItems: id, section_id, description, unit, quantity, unit_price, item_type (material, labor, manual), source (catalog, ai_generated, manual), catalog_item_id (optional reference to material or labor), sort_order.
+NAVIGATION SIDEBAR (left side, dark background):
+
+OrçaPro logo and name at top
+Painel / Tableau de bord (dashboard icon)
+Orçamentos / Devis (document icon)
+Materiais / Matériaux (grid icon)
+Mão de Obra / Main d'œuvre (tools icon)
+Modelos / Modèles (template icon)
+Definições / Paramètres (settings gear icon)
+User name and "Admin" label at bottom with logout
+
+PAGE 1 — DASHBOARD (route /app):
+Show PT/FR toggle at top right. Title "Painel / Tableau de bord" with subtitle "Overview of your construction business."
+Top metrics cards row:
+
+Total Quotes (this month / all time)
+Active Value (sum of sent quotes €)
+Conversion Rate (accepted / sent × 100%)
+Average Quote Value
+
+Simple bar chart: quotes created per month, last 6 months.
+Recent Quotes section: show last 5 quotes with quote number, client name, address, status badge (yellow=draft, blue=sent, green=accepted, red=rejected), total value, date. Click to open quote.
+Quick Actions section with 4 buttons:
+
+🤖 Novo Orçamento AI / Nouveau Devis AI
+✏️ Novo Orçamento / Nouveau Devis
+➕ Adicionar Material / Ajouter Matériau
+➕ Adicionar Mão de Obra / Ajouter Main d'œuvre
+
+PAGE 2 — QUOTES LIST (route /app/quotes):
+Title "Orçamentos / Devis" with subtitle "Manage and generate quotes for your clients."
+Button "+ Novo Orçamento / Nouveau Devis"
+Search bar.
+Table: #, Cliente/Client, Morada/Adresse, Estado/Statut (badge with color), Total, Date. Click row to open quote detail.
+PAGE 3 — QUOTE EDITOR (route /app/quotes/new and /app/quotes/[id]):
+This is the most important page. Must be very well built.
+Top section — Client info:
+
+Client name (required)
+Client email (optional)
+Client phone (optional)
+Work address (required)
+
+Action bar with buttons:
+
+📋 Aplicar Modelo / Appliquer Modèle (opens modal with template list, selecting one pre-fills all sections and items, ask "replace all or add to existing?" if sections already exist)
+🤖 Gerar com AI / Générer avec AI (opens AI generator flow)
+💾 Guardar / Sauvegarder
+📄 Exportar PDF / Exporter PDF
+📋 Duplicar / Dupliquer
+Status dropdown to change: Rascunho→Enviado→Aceite/Rejeitado
+
+Sections area:
+
+Button "+ Adicionar Secção / Ajouter Section"
+Each section shows: editable name, drag handle or arrows to reorder, delete button (with confirmation)
+Inside each section: list of items in a table (Description | Unit | Qty | Unit Price | Total)
+Each item: inline editable quantity and price, delete button, drag to reorder
+Item total = quantity × unit_price, calculated automatically
+Section subtotal shown at bottom of each section
+Button "+ Adicionar Item / Ajouter Item" inside each section opens a modal with 3 tabs:
+Tab 1 "Do Catálogo / Du Catalogue": searchable list of materials from catalog, select one, enter quantity, price pre-fills from catalog but is editable per-quote
+Tab 2 "Mão de Obra / Main d'œuvre": searchable list of labor rates, select one, enter quantity, price pre-fills (use LUX or PT price based on company settings)
+Tab 3 "Item Manual / Item Manuel": free text description, unit dropdown, quantity, unit price
+Inside each section also add a small button "🤖 Sugerir / Suggérer" that uses AI to suggest missing items for that section (see AI features below)
+
+Bottom section — Notes and conditions:
+
+Notas / Notes (textarea, appears on PDF)
+Condições de pagamento / Conditions de paiement (pre-filled from company settings, editable)
+Prazo de execução / Délai d'exécution (text input)
+Validade / Validité (dropdown 15/30/60/90 days, default from settings)
+Desconto global / Remise globale (% input, optional)
+
+Right sidebar or sticky bottom bar — Real-time summary:
+
+Subtotal Materiais/Matériaux: €XXX
+Subtotal Mão de Obra/Main d'œuvre: €XXX
+Desconto/Remise: -€XXX (if applicable)
+Subtotal: €XXX
+IVA/TVA (17%): €XXX
+TOTAL: €X,XXX.XX
+Updates live as user edits.
+
+Auto-save draft every 30 seconds. Toast notification "Guardado ✓ / Sauvegardé ✓".
+PAGE 4 — QUOTE DETAIL / PDF PREVIEW (route /app/quotes/[id]/view):
+Shows the quote in a clean read-only view that looks like the PDF. Buttons at top: Exportar PDF, Enviar por Email (mailto: link), Editar, Duplicar, change status.
+PDF EXPORT — When clicking "Exportar PDF", generate a professional A4 PDF document using jspdf + jspdf-autotable or @react-pdf/renderer:
+PDF Header: company logo (left), company name bold and large, company address, NIF, email, phone on the right.
+Title: "ORÇAMENTO / DEVIS" centered and large, quote number (Q-2026-001), creation date DD/MM/YYYY, valid until date.
+Client block: "Cliente/Client:" name, "Morada/Adresse:" address, email, phone.
+Body: For each section, section name as subheader (bold, numbered: "1. Démolition", "2. Carrelage"), then table with columns #/Description/Unité/Quantité/Prix Unit./Total, subtotal per section at bottom right.
+Financial summary box at bottom: Subtotal Matériaux, Subtotal Main d'œuvre, SUBTOTAL, TVA 17%, TOTAL in bold large.
+Footer: payment conditions, execution timeframe, validity text "Ce devis est valable X jours / Este orçamento é válido por X dias", company contact, small line "Document généré par OrçaPro".
+Page numbers if more than 1 page: "Page 1 de 2".
+Clean professional design: Helvetica or sans-serif font, 20mm margins, subtle lines between sections, accent color for headers matching the app blue.
+PAGE 5 — MATERIALS CATALOG (route /app/catalog/materials):
+Title "Materiais / Matériaux". Button "+ Ações/Actions" dropdown: Add Material, Import CSV, Export CSV.
+Search bar + Category filter dropdown (all categories listed above).
+Table: Nome/Nom, Categoria/Catégorie, Unidade/Unité, Custo/Coût, Preço/Prix, Fornecedor/Fournisseur, Ações (edit/delete).
+Edit opens inline or modal form. When user enters cost and company has default margin, auto-calculate sell price (cost × (1 + margin/100)).
+CSV Import: upload CSV file with columns name, category, unit, cost, price, supplier, reference. Parse and bulk insert.
+CSV Export: download current catalog as CSV.
+PAGE 6 — LABOR RATES (route /app/catalog/labor):
+Title "Mão de Obra / Main d'œuvre". Button "+ Ações/Actions": Add Labor Rate.
+Search bar.
+Table: Nome/Nom, Ofício/Métier, Unidade/Unité, Preço LUX/Prix LUX, Preço PT/Prix PT, Ações (edit/delete).
+Pre-fill with these default rates on first use: Maçon/Pedreiro masonry €45/h LUX €15/h PT, Carreleur/Ladrilhador tiling €65/m² LUX €25/m² PT, Peintre/Pintor painting €35/m² LUX €12/m² PT, Plombier/Canalizador plumbing €55/h LUX €20/h PT, Électricien/Eletricista electrical €55/h LUX €20/h PT, Plâtrier/Estucador plaster €50/m² LUX €18/m² PT, Menuisier/Carpinteiro carpentry €50/h LUX €18/h PT, Serrurier/Serralheiro metalwork €55/h LUX €20/h PT, Démolition/Demolição demolition €50/h LUX €20/h PT, Manœuvre/Servente general labor €30/h LUX €10/h PT.
+PAGE 7 — TEMPLATES (route /app/templates):
+Title "Modelos / Modèles" with subtitle "Manage construction templates and rules."
+Button "+ New Template / Novo Modelo".
+Table: Nome/Nom, Sections count, Ações (edit/duplicate/delete).
+Create 5 SYSTEM TEMPLATES pre-filled on first use:
+Template 1 "Salle de Bain Complète / Casa de Banho Completa":
+Section "Démolition/Demolição": démolition revêtements €25/m², enlèvement sanitaires €50/un, enlèvement baignoire €80/un, transport déchets €180/vg.
+Section "Étanchéité/Impermeabilização": primaire €6/m², membrane liquide 2 couches €18/m², bande étanchéité €8/ml.
+Section "Carrelage/Cerâmica": carrelage sol fourni posé €95/m², carrelage murs €90/m², colle flex €2.50/kg, joint €8/kg, profilés finition €12/ml, coupes spéciales €100/vg.
+Section "Sanitaires/Louças": WC complet €500/un, meuble vasque €700/un, receveur douche €450/un, robinet lavabo €180/un, colonne douche €280/un, accessoires €200/vg.
+Section "Plomberie/Canalização": plombier installation €900/vg, matériel plomberie €350/vg.
+Section "Électricité/Eletricidade": électricien €450/vg, matériel électrique €180/vg.
+Template 2 "Peinture Appartement / Pintura Apartamento":
+Section "Préparation/Preparação": réparation fissures €150/vg, ponçage murs €6/m², primaire €5/m², protection sols €80/vg.
+Section "Peinture/Pintura": peinture mate murs 2 couches €12/m², peinture plafonds €11/m², laque portes cadres €55/un.
+Section "Main d'œuvre/Mão de Obra": peintre murs plafonds €28/m², peintre portes €65/un.
+Template 3 "Rénovation Cuisine / Remodelação Cozinha":
+Section "Démolition/Demolição": enlèvement cuisine existante €400/vg, démolition revêtements €25/m², transport €180/vg.
+Section "Plomberie et Électricité/Canalização e Eletricidade": plombier repositionnement €800/vg, électricien nouveaux points €700/vg, matériel plomberie €280/vg, matériel électrique €220/vg.
+Section "Revêtements/Revestimentos": carrelage sol €95/m², crédence €110/m², colle et joint €80/vg.
+Section "Peinture/Pintura": peinture plafond murs €35/m².
+Section "Main d'œuvre/Mão de Obra": carreleur €60/m², montage meubles cuisine €650/vg.
+Template 4 "Sol Stratifié / Pavimento Flutuante":
+Section "Préparation/Preparação": enlèvement sol existant €12/m², ragréage €18/m², nettoyage €60/vg.
+Section "Matériaux/Materiais": sol stratifié vinyle €35/m², sous-couche acoustique €6/m², plinthes €9/ml, barres seuil €25/un.
+Section "Main d'œuvre/Mão de Obra": pose sol €18/m², pose plinthes €6/ml, pose barres seuil €18/un.
+Template 5 "Étanchéité Terrasse / Impermeabilização Terraço":
+Section "Préparation/Preparação": enlèvement étanchéité existante €16/m², nettoyage surface €6/m², réparation fissures €10/ml.
+Section "Étanchéité/Impermeabilização": primaire €7/m², membrane bitumineuse 2 couches €32/m², renfort points singuliers €160/vg, protection mécanique €12/m².
+Section "Main d'œuvre/Mão de Obra": applicateur étanchéité €25/m².
+Template editor: user can create custom templates from scratch or save any existing quote as a template ("Guardar como Modelo / Sauvegarder comme Modèle" button in quote editor). Edit template sections and items, duplicate templates.
+PAGE 8 — SETTINGS (route /app/settings):
+Title "Definições / Paramètres" with subtitle "Manage your company details and defaults."
+Section "Dados da Empresa / Données Entreprise":
+
+Nome/Nom (text)
+Morada/Adresse (text)
+NIF/Numéro TVA (text)
+Email (text)
+Telefone/Téléphone (text)
+Button "Guardar/Sauvegarder"
+
+Section "Logótipo/Logo":
+
+Current logo preview
+Upload Logo button
+Text: "This logo will appear on your PDF quotes"
+
+Section "Padrões de Orçamento / Paramètres Devis":
+
+IVA/TVA Padrão (%) — default 17, with note "Luxembourg: 17% | Portugal: 23%"
+Margem padrão sobre materiais (%) — default 100
+Validade padrão (dropdown 15/30/60/90 days) — default 30
+Prefixo numeração (text) — default "Q"
+Condições de pagamento padrão (textarea) — default "50% à la commande, 50% à la réception des travaux / 50% na adjudicação, 50% na conclusão dos trabalhos"
+Prazo de execução padrão (text) — default "À définir / A definir"
+Nota de rodapé padrão (textarea) — appears on all PDFs
+Mercado principal (dropdown: Luxembourg / Portugal) — affects which labor prices are used by default
+
+AI QUOTE GENERATOR — accessed via "🤖 Gerar Orçamento com AI" button:
+Opens a full-page or large modal with 4 steps:
+Step 1 "Descreva o trabalho / Décrivez les travaux":
+Large textarea with placeholder examples in grey: "Rénovation complète salle de bain 3x2m, changer carrelage sol et murs, nouveau WC, lavabo et douche" and "Pintura apartamento T3, 85m², 6 divisões, tetos e paredes, reparar fissuras". Step indicator shows 1 of 4 active.
+Step 2 "Detalhes / Détails" (optional fields):
+
+Área aproximada / Surface approximative (m²) — number input
+Localização / Localisation — dropdown: Luxembourg-Ville, Esch-sur-Alzette, Differdange, Ettelbruck, Dudelange, Pétange, Outro Luxembourg, Lisboa, Porto, Algarve, Centro, Norte, Açores, Madeira, Outro Portugal
+Nível de acabamento / Niveau de finition — 3 card selection: Économique/Económico, Standard, Premium
+Upload fotos / Photos (optional, up to 5)
+
+Step 3 "A gerar... / Génération en cours...":
+Loading animation with skeleton preview of a quote being built. Text: "A analisar o seu projeto... / Analyse de votre projet en cours..."
+Send to AI API (OpenAI GPT-4 or Anthropic Claude, API key stored in .env ANTHROPIC_API_KEY or OPENAI_API_KEY) with this system prompt: "You are a bilingual French-Portuguese construction quoting expert specializing in Luxembourg and Portugal markets. Generate detailed, realistic construction quotes. Rules: 1) Organize by logical sections: Démolition/Demolição → Préparation → Matériaux/Materiais → Finitions/Acabamentos → Main d'œuvre/Mão de Obra. 2) Calculate quantities based on provided area: ceramic = area + 10% waste, tile adhesive ~5kg/m² floor ~4kg/m² walls, grout ~0.5kg/m², paint ~0.15L/m² per coat ×2 coats, primer ~0.1L/m². 3) Default to Luxembourg pricing. If location is Portugal, use Portuguese pricing (roughly 2.5-3x lower than Luxembourg for labor). 4) When items match the user catalog or labor table, use those prices. 5) For renovations always include demolition, preparation, debris transport. 6) Finish level affects material quality: Économique = basic brands, Standard = mid-range known brands, Premium = high-end designer materials. 7) Include practical recommendations in notes. 8) Respond ONLY in valid JSON format with this structure: {"sections":[{"name":"Section Name FR / PT","items":[{"description":"Item description FR / PT","unit":"m²","quantity":12.0,"unit_price":95.00,"item_type":"material or labor","source":"catalog or estimated"}]}],"notes":"Recommendations text...","estimated_duration":"5-7 jours ouvrables / dias úteis","confidence":"high or medium or low"}. Do not include any text outside the JSON." Include in the user message: the work description, area, location, finish level, and the full user materials catalog and labor rates table as context.
+Step 4 "Resultado / Résultat":
+Parse the AI JSON response and display as a fully formed quote in the editor layout. Show banner at top: "🤖 Orçamento gerado por AI — reveja e ajuste antes de enviar / Devis généré par AI — vérifiez avant d'envoyer". AI-generated items show small "AI" badge. Items matched from user catalog show "✓ Catálogo" badge.
+Three buttons: "✅ Aceitar e Editar / Accepter et Modifier" (saves as new draft quote and opens in editor), "🔄 Gerar Novamente / Régénérer" (goes back to step 1 with same inputs), "❌ Cancelar / Annuler".
+Rate limit: max 20 AI generations per day per user. Show remaining count.
+AI SUGGEST FEATURE — Inside quote editor, each section has a small "🤖 Sugerir / Suggérer" button. When clicked, send the section name and current items to AI with prompt: "Given this construction quote section named '[name]' with these existing items: [list items], suggest 2-5 additional items that are commonly needed but missing. For example if a bathroom section has ceramic tiles but no waterproofing, suggest waterproofing. Use Luxembourg pricing. Respond in JSON array: [{"description":"...","unit":"...","suggested_quantity":0,"suggested_price":0}]". Display suggestions as a list below the section. Each suggestion has an "Adicionar / Ajouter" button that adds it to the section with one click, and an "Ignorar / Ignorer" button to dismiss.
+AI VERIFY FEATURE — On quote detail page, button "🤖 Verificar / Vérifier". Send the entire quote to AI with prompt: "Review this construction quote and identify potential issues. Check for: 1) Missing items commonly needed for this type of work, 2) Quantities that seem too low or too high for the given areas, 3) Prices significantly above or below Luxembourg market rates, 4) Missing sections (like waterproofing for bathrooms, primer for painting). Respond in JSON array: [{"type":"warning or suggestion or ok","message":"Description of issue FR / PT","section":"affected section name","fix":{"action":"add_item or adjust_quantity or adjust_price","description":"...","unit":"...","quantity":0,"price":0}}]". Display as a panel: ⚠️ warnings in orange, 💡 suggestions in blue, ✅ OK items in green. Each warning/suggestion with a "Aplicar / Appliquer" button that executes the fix with one click.
+UX POLISH:
+
+Auto-save drafts every 30 seconds with subtle toast "Guardado ✓"
+Toast notifications for all major actions (save, PDF generated, quote sent, status changed)
+Confirmation modal before any destructive action (delete quote, delete material, delete section)
+Undo toast: when deleting an item or section, show toast "Item eliminado — Desfazer" for 5 seconds, clicking undo restores it
+Empty states: when no quotes exist, show illustration with "Crie o seu primeiro orçamento / Créez votre premier devis" and CTA buttons for manual and AI quote
+Skeleton loading states for all data-fetching pages
+Mobile responsive: sidebar collapses to hamburger menu, tables scroll horizontally, action buttons stack vertically, quote editor sections stack properly on mobile
+All monetary values formatted European style: €1.234,56
+Keyboard shortcut Ctrl+S to save current quote
+
+GENERAL RULES:
+
+All API keys in .env variables, never hardcoded
+Proper error handling everywhere with user-friendly error messages
+Database migrations that don't break existing data
+Clean code with proper TypeScript types
+Do NOT add: project management, full invoicing/billing, calendar/scheduling, CRM beyond quote client info, payments/Stripe, chat/messaging, features not described in this prompt
+Keep the name OrçaPro and the described branding throughout
