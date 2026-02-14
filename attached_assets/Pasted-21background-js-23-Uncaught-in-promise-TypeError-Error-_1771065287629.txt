@@ -1,0 +1,83 @@
+21background.js:23 Uncaught (in promise) TypeError: Error in invocation of tabs.get(integer tabId, function callback): Error at parameter 'tabId': Value must be at least 0.
+    at Sc.handleSubFrameNavigationComplete (background.js:23:178626)
+    at Sc.onNavigateComplete (background.js:23:177492)
+    at Ic.onNavigateComplete (background.js:23:186414)Understand this error
+16The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.Understand this error
+16The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?Understand this error
+16The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.Understand this error
+/~:1 The source list for the Content Security Policy directive 'default-src' contains an invalid source: ''unsafe-dynamic''. It will be ignored.Understand this error
+/~:1 The Content-Security-Policy directive 'default-src' contains 'report-uri' as a source expression. Did you want to add it as a directive and forget a semicolon?Understand this error
+/~:1 The source list for Content Security Policy directive 'default-src' contains a source with an invalid path: '/api/4509669501698048/security/?sentry_key=7eb3d90eb4660416caf507087367e67e'. The query component, including the '?', will be ignored.Understand this error
+2056d9e9f43c5dbc.js:14 
+      /////////////////////
+   ///////////////////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////        Curious and driven?
+  ///////////////@@@@@@@///////        Work with us!
+  ///////////////@@@@@@@///////
+  ///////////////@@@@@@@///////        https://join.replit.com/hack.with.us
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@#//////////////
+   ///////////////////////////
+      /////////////////////
+      
+2056d9e9f43c5dbc.js:14 Download the Apollo DevTools for a better development experience: https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm
+2056d9e9f43c5dbc.js:14 [ai-chat] Creating connection with chat proxy enabled
+(anonymous) @ 2056d9e9f43c5dbc.js:14Understand this warning
+2056d9e9f43c5dbc.js:14 [LaunchDarkly] LaunchDarkly client initialized
+2056d9e9f43c5dbc.js:14 [Coframe] Replit Enterprise watcher loaded
+/~:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+2056d9e9f43c5dbc.js:14 [ai-chat] Creating connection with chat proxy enabled
+(anonymous) @ 2056d9e9f43c5dbc.js:14Understand this warning
+5Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.Understand this error
+9954129c7dd6dc22.js:2 Unrecognized feature: 'ambient-light-sensor'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'battery'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'execution-while-not-rendered'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'execution-while-out-of-viewport'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'layout-animations'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'legacy-image-formats'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'navigation-override'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'oversized-images'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'publickey-credentials'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'speaker-selection'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'unoptimized-images'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'unsized-media'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Unrecognized feature: 'pointer-lock'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Allow attribute will take precedence over 'allowfullscreen'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+9954129c7dd6dc22.js:2 Allow attribute will take precedence over 'allowpaymentrequest'.
+C @ 9954129c7dd6dc22.js:2Understand this warning
+2056d9e9f43c5dbc.js:14 Cache data may be lost when replacing the recentRepls field of a Query object.
+
+This could cause additional (usually avoidable) network requests to fetch data that were otherwise cached.
+
+To address this problem (which is not a bug in Apollo Client), define a custom merge function for the Query.recentRepls field, so InMemoryCache can safely merge these objects:
+
+  existing: [{"__ref":"Repl:c1350e31-837a-4318-81c2-3c2208940aa2"}]
+  incoming: []
+
+For more information about these options, please refer to the documentation:
+
+  * Ensuring entity objects have IDs: https://go.apollo.dev/c/generating-unique-identifiers
+  * Defining custom merge functions: https://go.apollo.dev/c/merging-non-normalized-objects
+
+(anonymous) @ 2056d9e9f43c5dbc.js:14Understand this warning
+22056d9e9f43c5dbc.js:14 [ai-chat] Creating connection with chat proxy enabled
+(anonymous) @ 2056d9e9f43c5dbc.js:14Understand this warning
+3Attached-Assets:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was receivedUnderstand this error
+2056d9e9f43c5dbc.js:14 onClick is deprecated, please use onPress

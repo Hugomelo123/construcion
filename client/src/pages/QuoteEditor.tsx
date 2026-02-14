@@ -48,7 +48,7 @@ export default function QuoteEditor() {
 
   const [quote, setQuote] = useState<Quote>(existingQuote || {
     id: generateId(),
-    quote_number: `Q-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`,
+    quote_number: `Q-${new Date().getFullYear()}-${String((quotes?.length || 0) + 1).padStart(3, '0')}`,
     client_name: '',
     client_address: '',
     client_email: '',
@@ -81,10 +81,10 @@ export default function QuoteEditor() {
     let labTotal = 0;
     let subTotal = 0;
 
-    newQuote.sections = newQuote.sections.map(section => {
+    newQuote.sections = (newQuote.sections || []).map(section => {
       let secTotal = 0;
-      const updatedItems = section.items.map(item => {
-        const itemTotal = item.quantity * item.unit_price;
+      const updatedItems = (section.items || []).map(item => {
+        const itemTotal = (item.quantity || 0) * (item.unit_price || 0);
         secTotal += itemTotal;
         if (item.item_type === 'material') matTotal += itemTotal;
         else labTotal += itemTotal;
@@ -110,9 +110,9 @@ export default function QuoteEditor() {
     }));
   }, [
     // Deep dependency check simplified for prototype
-    JSON.stringify(quote.sections), 
-    quote.discount_percentage, 
-    quote.iva_rate
+    JSON.stringify(quote?.sections), 
+    quote?.discount_percentage, 
+    quote?.iva_rate
   ]);
 
   // Handlers
@@ -130,15 +130,15 @@ export default function QuoteEditor() {
   const addSection = () => {
     setQuote(prev => ({
       ...prev,
-      sections: [...prev.sections, { id: generateId(), name: 'New Section', items: [], subtotal: 0 }]
+      sections: [...(prev.sections || []), { id: generateId(), name: 'New Section', items: [], subtotal: 0 }]
     }));
   };
 
   const addItem = (sectionId: string, item: QuoteItem) => {
     setQuote(prev => ({
       ...prev,
-      sections: prev.sections.map(s => 
-        s.id === sectionId ? { ...s, items: [...s.items, item] } : s
+      sections: (prev.sections || []).map(s => 
+        s.id === sectionId ? { ...s, items: [...(s.items || []), item] } : s
       )
     }));
   };
@@ -146,24 +146,24 @@ export default function QuoteEditor() {
   const updateSectionName = (sectionId: string, name: string) => {
     setQuote(prev => ({
       ...prev,
-      sections: prev.sections.map(s => s.id === sectionId ? { ...s, name } : s)
+      sections: (prev.sections || []).map(s => s.id === sectionId ? { ...s, name } : s)
     }));
   };
 
   const deleteSection = (sectionId: string) => {
     setQuote(prev => ({
       ...prev,
-      sections: prev.sections.filter(s => s.id !== sectionId)
+      sections: (prev.sections || []).filter(s => s.id !== sectionId)
     }));
   };
 
   const updateItem = (sectionId: string, itemId: string, field: keyof QuoteItem, value: any) => {
     setQuote(prev => ({
       ...prev,
-      sections: prev.sections.map(s => 
+      sections: (prev.sections || []).map(s => 
         s.id === sectionId ? {
           ...s,
-          items: s.items.map(i => i.id === itemId ? { ...i, [field]: value } : i)
+          items: (s.items || []).map(i => i.id === itemId ? { ...i, [field]: value } : i)
         } : s
       )
     }));
@@ -172,23 +172,23 @@ export default function QuoteEditor() {
   const deleteItem = (sectionId: string, itemId: string) => {
     setQuote(prev => ({
       ...prev,
-      sections: prev.sections.map(s => 
-        s.id === sectionId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s
+      sections: (prev.sections || []).map(s => 
+        s.id === sectionId ? { ...s, items: (s.items || []).filter(i => i.id !== itemId) } : s
       )
     }));
   };
 
   const applyTemplate = (template: any) => {
     // Deep clone to generate new IDs
-    const newSections = template.sections.map((s: any) => ({
+    const newSections = (template.sections || []).map((s: any) => ({
       ...s,
       id: generateId(),
-      items: s.items.map((i: any) => ({ ...i, id: generateId() }))
+      items: (s.items || []).map((i: any) => ({ ...i, id: generateId() }))
     }));
     
     setQuote(prev => ({
       ...prev,
-      sections: [...prev.sections, ...newSections]
+      sections: [...(prev.sections || []), ...newSections]
     }));
     toast({ title: "Template Applied", description: `Added sections from ${template.name}` });
   };
@@ -232,7 +232,7 @@ export default function QuoteEditor() {
 
     let yPos = 90;
 
-    quote.sections.forEach((section, index) => {
+    (quote.sections || []).forEach((section, index) => {
       // Section Header
       doc.setFont("helvetica", "bold");
       doc.setFillColor(240, 240, 240);
@@ -244,12 +244,12 @@ export default function QuoteEditor() {
       autoTable(doc, {
         startY: yPos,
         head: [[t('description'), t('unit'), t('quantity'), t('unitPrice'), t('total')]],
-        body: section.items.map(item => [
+        body: (section.items || []).map(item => [
           item.description,
           item.unit,
           item.quantity,
-          `€${item.unit_price.toFixed(2)}`,
-          `€${item.total.toFixed(2)}`
+          `€${(item.unit_price || 0).toFixed(2)}`,
+          `€${(item.total || 0).toFixed(2)}`
         ]),
         theme: 'grid',
         headStyles: { fillColor: [37, 99, 235] }, // Blue
@@ -263,23 +263,23 @@ export default function QuoteEditor() {
     // Totals
     const rightMargin = 150;
     doc.text(`${t('subtotal')}:`, rightMargin, yPos);
-    doc.text(`€${quote.subtotal.toFixed(2)}`, 190, yPos, { align: 'right' });
+    doc.text(`€${(quote.subtotal || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
     yPos += 7;
     
     if (quote.discount_amount > 0) {
       doc.text(`${t('discount')} (${quote.discount_percentage}%):`, rightMargin, yPos);
-      doc.text(`-€${quote.discount_amount.toFixed(2)}`, 190, yPos, { align: 'right' });
+      doc.text(`-€${(quote.discount_amount || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
       yPos += 7;
     }
 
     doc.text(`${t('iva')} (${quote.iva_rate}%):`, rightMargin, yPos);
-    doc.text(`€${quote.iva_amount.toFixed(2)}`, 190, yPos, { align: 'right' });
+    doc.text(`€${(quote.iva_amount || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
     yPos += 10;
 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text(`${t('total')}:`, rightMargin, yPos);
-    doc.text(`€${quote.total.toFixed(2)}`, 190, yPos, { align: 'right' });
+    doc.text(`€${(quote.total || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
 
     doc.save(`${quote.quote_number}.pdf`);
   };
@@ -315,7 +315,7 @@ export default function QuoteEditor() {
                 <DialogTitle>{t('applyTemplate')}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-2 py-4">
-                {templates.map(t => (
+                {(templates || []).map(t => (
                   <Button 
                     key={t.id} 
                     variant="ghost" 
@@ -324,7 +324,7 @@ export default function QuoteEditor() {
                   >
                     <div className="text-left">
                       <div className="font-medium">{t.name}</div>
-                      <div className="text-xs text-slate-500">{t.sections.length} sections</div>
+                      <div className="text-xs text-slate-500">{(t.sections || []).length} sections</div>
                     </div>
                   </Button>
                 ))}
@@ -382,7 +382,7 @@ export default function QuoteEditor() {
 
           {/* Sections */}
           <div className="space-y-6">
-            {quote.sections.map((section) => (
+            {(quote.sections || []).map((section) => (
               <Card key={section.id} className="shadow-sm border-slate-200 overflow-hidden">
                 <div className="bg-slate-50 border-b p-3 flex items-center gap-2 group">
                   <GripVertical className="w-4 h-4 text-slate-400 cursor-move" />
@@ -393,7 +393,7 @@ export default function QuoteEditor() {
                   />
                   <div className="ml-auto flex items-center">
                     <div className="text-sm font-bold text-slate-600 mr-4">
-                      €{section.subtotal.toFixed(2)}
+                      €{(section.subtotal || 0).toFixed(2)}
                     </div>
                     <Button 
                       variant="ghost" 
@@ -420,7 +420,7 @@ export default function QuoteEditor() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {section.items.map((item) => (
+                      {(section.items || []).map((item) => (
                         <tr key={item.id} className="group hover:bg-slate-50">
                            <td className="px-4 py-2 text-center text-slate-300">
                              <GripVertical className="w-3 h-3 inline" />
@@ -456,7 +456,7 @@ export default function QuoteEditor() {
                              />
                            </td>
                            <td className="px-4 py-2 text-right font-medium">
-                             €{item.total.toFixed(2)}
+                             €{(item.total || 0).toFixed(2)}
                            </td>
                            <td className="px-4 py-2 text-center">
                              <Button 
@@ -538,7 +538,7 @@ export default function QuoteEditor() {
 
                           <TabsContent value="catalog" className="py-4">
                             <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                              {materials.map(m => (
+                              {(materials || []).map(m => (
                                 <div key={m.id} className="flex items-center justify-between p-2 hover:bg-slate-50 border rounded-md cursor-pointer"
                                   onClick={() => addItem(section.id, {
                                     id: generateId(),
@@ -562,7 +562,7 @@ export default function QuoteEditor() {
 
                           <TabsContent value="labor" className="py-4">
                             <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                              {labor.map(l => (
+                              {(labor || []).map(l => (
                                 <div key={l.id} className="flex items-center justify-between p-2 hover:bg-slate-50 border rounded-md cursor-pointer"
                                   onClick={() => addItem(section.id, {
                                     id: generateId(),
@@ -646,16 +646,16 @@ export default function QuoteEditor() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-500">{t('materials')}</span>
-                  <span>€{quote.total_materials.toFixed(2)}</span>
+                  <span>€{(quote.total_materials || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">{t('labor')}</span>
-                  <span>€{quote.total_labor.toFixed(2)}</span>
+                  <span>€{(quote.total_labor || 0).toFixed(2)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-medium">
                   <span>{t('subtotal')}</span>
-                  <span>€{quote.subtotal.toFixed(2)}</span>
+                  <span>€{(quote.subtotal || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-500">
                   <span>{t('discount')} %</span>
@@ -666,10 +666,10 @@ export default function QuoteEditor() {
                     onChange={(e) => setQuote({...quote, discount_percentage: parseFloat(e.target.value) || 0})}
                   />
                 </div>
-                {quote.discount_amount > 0 && (
+                {(quote.discount_amount || 0) > 0 && (
                   <div className="flex justify-between text-red-500 text-xs">
                      <span></span>
-                     <span>-€{quote.discount_amount.toFixed(2)}</span>
+                     <span>-€{(quote.discount_amount || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center text-slate-500">
@@ -683,13 +683,13 @@ export default function QuoteEditor() {
                 </div>
                 <div className="flex justify-between text-slate-500 text-xs">
                      <span></span>
-                     <span>€{quote.iva_amount.toFixed(2)}</span>
+                     <span>€{(quote.iva_amount || 0).toFixed(2)}</span>
                   </div>
               </div>
               <Separator />
               <div className="flex justify-between items-end">
                 <span className="font-bold text-xl text-slate-900">{t('total')}</span>
-                <span className="font-bold text-2xl text-blue-600">€{quote.total.toFixed(2)}</span>
+                <span className="font-bold text-2xl text-blue-600">€{(quote.total || 0).toFixed(2)}</span>
               </div>
               
               <Button className="w-full bg-blue-600 hover:bg-blue-700" size="lg" onClick={handleSave}>
