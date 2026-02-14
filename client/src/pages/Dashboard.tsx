@@ -39,7 +39,7 @@ export default function Dashboard() {
             <FileText className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{quotes.length}</div>
+            <div className="text-2xl font-bold">{quotes?.length || 0}</div>
             <p className="text-xs text-muted-foreground">+2 from last month</p>
           </CardContent>
         </Card>
@@ -156,7 +156,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {quotes.slice(0, 3).map((quote) => (
+                {(quotes || []).slice(0, 3).map((quote) => (
                   <div key={quote.id} className="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0 last:pb-0">
                     <div className="space-y-1">
                       <p className="text-sm font-medium leading-none">{quote.client_name}</p>
@@ -166,9 +166,9 @@ export default function Dashboard() {
                       <span className="font-bold text-sm">€{quote.total.toFixed(2)}</span>
                       <span className={cn(
                         "text-[10px] px-2 py-0.5 rounded-full uppercase font-semibold",
-                        quote.status === 'sent' && "bg-blue-100 text-blue-700",
+                        quote.status === 'sent' && "bg-blue-100 text-blue-800",
                         quote.status === 'accepted' && "bg-green-100 text-green-700",
-                        quote.status === 'draft' && "bg-yellow-100 text-yellow-700",
+                        quote.status === 'draft' && "bg-yellow-100 text-yellow-800",
                         quote.status === 'rejected' && "bg-red-100 text-red-700",
                       )}>
                         {t(quote.status)}
