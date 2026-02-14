@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Layout } from "@/components/Layout";
 import { useLanguage } from "@/lib/i18n";
@@ -23,26 +23,29 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, FileDown, Copy, Sparkles, Plus, Trash2, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
+import { Save, FileDown, Copy, Sparkles, Plus, Trash2, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import logoImg from "@/assets/logo.png"; // Import logo for PDF
 import { cn } from "@/lib/utils";
 
-// Utility to generate ID
 const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// Sanitize text for safe PDF output
+function sanitizeText(text: string | undefined | null): string {
+  if (!text) return '';
+  return String(text).replace(/[^\x20-\x7E\u00C0-\u024F\u1E00-\u1EFF ]/g, '');
+}
 
 export default function QuoteEditor() {
   const { t, language } = useLanguage();
-  const { quotes, addQuote, updateQuote, materials, labor, templates } = useApp();
+  const { quotes, addQuote, updateQuote, materials, labor, templates, settings } = useApp();
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/app/quotes/:id");
   const { toast } = useToast();
-  
+
   const isNew = params?.id === "new" || !params?.id;
   const existingQuote = !isNew ? quotes.find(q => q.id === params?.id) : null;
 
@@ -56,7 +59,7 @@ export default function QuoteEditor() {
     status: 'draft',
     validity_days: 30,
     discount_percentage: 0,
-    iva_rate: 17,
+    iva_rate: settings.default_iva || 17,
     created_at: new Date().toISOString(),
     sections: [],
     total_materials: 0,
@@ -67,21 +70,19 @@ export default function QuoteEditor() {
     total: 0
   });
 
-  // Load existing quote if accessed via URL directly
+  // Load existing quote if accessed via URL
   useEffect(() => {
     if (!isNew && existingQuote) {
       setQuote(existingQuote);
     }
   }, [existingQuote, isNew]);
 
-  // Calculations
-  useEffect(() => {
-    const newQuote = { ...quote };
+  // Stable calculation using useMemo instead of useEffect + JSON.stringify
+  const calculatedTotals = useMemo(() => {
     let matTotal = 0;
     let labTotal = 0;
-    let subTotal = 0;
 
-    newQuote.sections = (newQuote.sections || []).map(section => {
+    const updatedSections = (quote.sections || []).map(section => {
       let secTotal = 0;
       const updatedItems = (section.items || []).map(item => {
         const itemTotal = (item.quantity || 0) * (item.unit_price || 0);
@@ -93,36 +94,40 @@ export default function QuoteEditor() {
       return { ...section, items: updatedItems, subtotal: secTotal };
     });
 
-    subTotal = matTotal + labTotal;
-    const discountAmt = subTotal * (newQuote.discount_percentage / 100);
+    const subTotal = matTotal + labTotal;
+    const discountAmt = subTotal * ((quote.discount_percentage || 0) / 100);
     const afterDiscount = subTotal - discountAmt;
-    const ivaAmt = afterDiscount * (newQuote.iva_rate / 100);
-    
-    setQuote(prev => ({
-      ...prev,
-      sections: newQuote.sections,
+    const ivaAmt = afterDiscount * ((quote.iva_rate || 0) / 100);
+
+    return {
+      sections: updatedSections,
       total_materials: matTotal,
       total_labor: labTotal,
       subtotal: subTotal,
       discount_amount: discountAmt,
       iva_amount: ivaAmt,
-      total: afterDiscount + ivaAmt
-    }));
-  }, [
-    // Deep dependency check simplified for prototype
-    JSON.stringify(quote?.sections), 
-    quote?.discount_percentage, 
-    quote?.iva_rate
-  ]);
+      total: afterDiscount + ivaAmt,
+    };
+  }, [quote.sections, quote.discount_percentage, quote.iva_rate]);
 
   // Handlers
   const handleSave = () => {
+    if (!quote.client_name.trim()) {
+      toast({ title: "Error", description: "Client name is required.", variant: "destructive" });
+      return;
+    }
+    if (!quote.client_address.trim()) {
+      toast({ title: "Error", description: "Client address is required.", variant: "destructive" });
+      return;
+    }
+
+    const quoteToSave = { ...quote, ...calculatedTotals };
     if (isNew) {
-      addQuote(quote);
+      addQuote(quoteToSave);
       toast({ title: t('save'), description: "Quote created successfully." });
       setLocation('/app/quotes');
     } else {
-      updateQuote(quote.id, quote);
+      updateQuote(quote.id, quoteToSave);
       toast({ title: t('save'), description: "Quote updated successfully." });
     }
   };
@@ -137,7 +142,7 @@ export default function QuoteEditor() {
   const addItem = (sectionId: string, item: QuoteItem) => {
     setQuote(prev => ({
       ...prev,
-      sections: (prev.sections || []).map(s => 
+      sections: (prev.sections || []).map(s =>
         s.id === sectionId ? { ...s, items: [...(s.items || []), item] } : s
       )
     }));
@@ -157,10 +162,10 @@ export default function QuoteEditor() {
     }));
   };
 
-  const updateItem = (sectionId: string, itemId: string, field: keyof QuoteItem, value: any) => {
+  const updateItem = (sectionId: string, itemId: string, field: keyof QuoteItem, value: string | number) => {
     setQuote(prev => ({
       ...prev,
-      sections: (prev.sections || []).map(s => 
+      sections: (prev.sections || []).map(s =>
         s.id === sectionId ? {
           ...s,
           items: (s.items || []).map(i => i.id === itemId ? { ...i, [field]: value } : i)
@@ -172,20 +177,19 @@ export default function QuoteEditor() {
   const deleteItem = (sectionId: string, itemId: string) => {
     setQuote(prev => ({
       ...prev,
-      sections: (prev.sections || []).map(s => 
+      sections: (prev.sections || []).map(s =>
         s.id === sectionId ? { ...s, items: (s.items || []).filter(i => i.id !== itemId) } : s
       )
     }));
   };
 
   const applyTemplate = (template: any) => {
-    // Deep clone to generate new IDs
     const newSections = (template.sections || []).map((s: any) => ({
       ...s,
       id: generateId(),
       items: (s.items || []).map((i: any) => ({ ...i, id: generateId() }))
     }));
-    
+
     setQuote(prev => ({
       ...prev,
       sections: [...(prev.sections || []), ...newSections]
@@ -195,36 +199,39 @@ export default function QuoteEditor() {
 
   const exportPDF = () => {
     const doc = new jsPDF();
-    
+
     // Header
-    doc.setFillColor(30, 41, 59); // Navy
+    doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, 210, 40, 'F');
-    
+
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(24);
-    doc.text("ORÇAPRO", 20, 25);
+    doc.text(sanitizeText(settings.company_name) || "ORCAPRO", 20, 25);
     doc.setFontSize(10);
-    doc.text("Construction & Rénovation", 20, 32);
+    doc.text("Construction & Renovation", 20, 32);
 
-    // Company Info (Right side)
+    // Company Info from settings
     doc.setFontSize(10);
-    doc.text("123 Rue du Construction", 190, 15, { align: 'right' });
-    doc.text("L-1234 Luxembourg", 190, 20, { align: 'right' });
-    doc.text("info@orcapro.lu", 190, 25, { align: 'right' });
+    doc.text(sanitizeText(settings.company_address), 190, 15, { align: 'right' });
+    doc.text(sanitizeText(settings.company_email), 190, 20, { align: 'right' });
+    doc.text(sanitizeText(settings.company_phone), 190, 25, { align: 'right' });
+    if (settings.company_nif) {
+      doc.text(`NIF: ${sanitizeText(settings.company_nif)}`, 190, 30, { align: 'right' });
+    }
 
     // Client Info
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
     doc.text(t('client') + ":", 20, 60);
     doc.setFont("helvetica", "bold");
-    doc.text(quote.client_name, 20, 66);
+    doc.text(sanitizeText(quote.client_name), 20, 66);
     doc.setFont("helvetica", "normal");
-    doc.text(quote.client_address, 20, 72);
+    doc.text(sanitizeText(quote.client_address), 20, 72);
 
     // Quote Info
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text(`${t('quotes').toUpperCase()} #${quote.quote_number}`, 140, 60);
+    doc.text(`${t('quotes').toUpperCase()} #${sanitizeText(quote.quote_number)}`, 140, 60);
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`${t('date')}: ${new Date(quote.created_at).toLocaleDateString()}`, 140, 66);
@@ -232,27 +239,25 @@ export default function QuoteEditor() {
 
     let yPos = 90;
 
-    (quote.sections || []).forEach((section, index) => {
-      // Section Header
+    (calculatedTotals.sections || []).forEach((section, index) => {
       doc.setFont("helvetica", "bold");
       doc.setFillColor(240, 240, 240);
       doc.rect(20, yPos, 170, 8, 'F');
-      doc.text(`${index + 1}. ${section.name}`, 22, yPos + 6);
+      doc.text(`${index + 1}. ${sanitizeText(section.name)}`, 22, yPos + 6);
       yPos += 15;
 
-      // Table for section items
       autoTable(doc, {
         startY: yPos,
         head: [[t('description'), t('unit'), t('quantity'), t('unitPrice'), t('total')]],
         body: (section.items || []).map(item => [
-          item.description,
-          item.unit,
+          sanitizeText(item.description),
+          sanitizeText(item.unit),
           item.quantity,
           `€${(item.unit_price || 0).toFixed(2)}`,
           `€${(item.total || 0).toFixed(2)}`
         ]),
         theme: 'grid',
-        headStyles: { fillColor: [37, 99, 235] }, // Blue
+        headStyles: { fillColor: [37, 99, 235] },
         margin: { left: 20, right: 20 },
       });
 
@@ -263,23 +268,23 @@ export default function QuoteEditor() {
     // Totals
     const rightMargin = 150;
     doc.text(`${t('subtotal')}:`, rightMargin, yPos);
-    doc.text(`€${(quote.subtotal || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
+    doc.text(`€${(calculatedTotals.subtotal || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
     yPos += 7;
-    
-    if (quote.discount_amount > 0) {
+
+    if (calculatedTotals.discount_amount > 0) {
       doc.text(`${t('discount')} (${quote.discount_percentage}%):`, rightMargin, yPos);
-      doc.text(`-€${(quote.discount_amount || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
+      doc.text(`-€${(calculatedTotals.discount_amount || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
       yPos += 7;
     }
 
     doc.text(`${t('iva')} (${quote.iva_rate}%):`, rightMargin, yPos);
-    doc.text(`€${(quote.iva_amount || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
+    doc.text(`€${(calculatedTotals.iva_amount || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
     yPos += 10;
 
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text(`${t('total')}:`, rightMargin, yPos);
-    doc.text(`€${(quote.total || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
+    doc.text(`€${(calculatedTotals.total || 0).toFixed(2)}`, 190, yPos, { align: 'right' });
 
     doc.save(`${quote.quote_number}.pdf`);
   };
@@ -302,7 +307,7 @@ export default function QuoteEditor() {
           </div>
           <p className="text-slate-500 text-sm mt-1">Created on {new Date(quote.created_at).toLocaleDateString()}</p>
         </div>
-        
+
         <div className="flex flex-wrap gap-2">
            <Dialog>
             <DialogTrigger asChild>
@@ -315,23 +320,23 @@ export default function QuoteEditor() {
                 <DialogTitle>{t('applyTemplate')}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-2 py-4">
-                {(templates || []).map(t => (
-                  <Button 
-                    key={t.id} 
-                    variant="ghost" 
+                {(templates || []).map(tpl => (
+                  <Button
+                    key={tpl.id}
+                    variant="ghost"
                     className="justify-start h-auto py-3 px-4 border border-slate-100 hover:border-blue-200 hover:bg-blue-50"
-                    onClick={() => applyTemplate(t)}
+                    onClick={() => applyTemplate(tpl)}
                   >
                     <div className="text-left">
-                      <div className="font-medium">{t.name}</div>
-                      <div className="text-xs text-slate-500">{(t.sections || []).length} sections</div>
+                      <div className="font-medium">{tpl.name}</div>
+                      <div className="text-xs text-slate-500">{(tpl.sections || []).length} sections</div>
                     </div>
                   </Button>
                 ))}
               </div>
             </DialogContent>
           </Dialog>
-          
+
           <Button variant="outline" onClick={() => {}} className="gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
             <Sparkles className="w-4 h-4" /> {t('generateAI')}
           </Button>
@@ -339,7 +344,7 @@ export default function QuoteEditor() {
           <Button variant="outline" onClick={exportPDF} className="gap-2">
             <FileDown className="w-4 h-4" /> {t('exportPDF')}
           </Button>
-          
+
           <Button onClick={handleSave} className="gap-2 bg-blue-600 hover:bg-blue-700">
             <Save className="w-4 h-4" /> {t('save')}
           </Button>
@@ -349,30 +354,31 @@ export default function QuoteEditor() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
-          
+
           {/* Client Info */}
           <Card className="shadow-sm border-slate-200">
             <CardContent className="p-6 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">{t('client')} *</label>
-                <Input 
-                  value={quote.client_name} 
+                <Input
+                  value={quote.client_name}
                   onChange={(e) => setQuote({...quote, client_name: e.target.value})}
                   placeholder="Jean Dupont"
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Email</label>
-                <Input 
-                  value={quote.client_email} 
+                <Input
+                  type="email"
+                  value={quote.client_email}
                   onChange={(e) => setQuote({...quote, client_email: e.target.value})}
                   placeholder="jean@example.com"
                 />
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <label className="text-sm font-medium text-slate-700">{t('address')} *</label>
-                <Input 
-                  value={quote.client_address} 
+                <Input
+                  value={quote.client_address}
                   onChange={(e) => setQuote({...quote, client_address: e.target.value})}
                   placeholder="123 Rue de Luxembourg"
                 />
@@ -382,12 +388,12 @@ export default function QuoteEditor() {
 
           {/* Sections */}
           <div className="space-y-6">
-            {(quote.sections || []).map((section) => (
+            {(calculatedTotals.sections || []).map((section) => (
               <Card key={section.id} className="shadow-sm border-slate-200 overflow-hidden">
                 <div className="bg-slate-50 border-b p-3 flex items-center gap-2 group">
                   <GripVertical className="w-4 h-4 text-slate-400 cursor-move" />
-                  <Input 
-                    value={section.name} 
+                  <Input
+                    value={section.name}
                     onChange={(e) => updateSectionName(section.id, e.target.value)}
                     className="h-8 border-transparent bg-transparent hover:bg-white focus:bg-white font-semibold text-lg w-full max-w-md"
                   />
@@ -395,9 +401,9 @@ export default function QuoteEditor() {
                     <div className="text-sm font-bold text-slate-600 mr-4">
                       €{(section.subtotal || 0).toFixed(2)}
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-8 w-8 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => deleteSection(section.id)}
                     >
@@ -426,42 +432,42 @@ export default function QuoteEditor() {
                              <GripVertical className="w-3 h-3 inline" />
                            </td>
                            <td className="px-4 py-2">
-                             <Input 
-                               value={item.description} 
+                             <Input
+                               value={item.description}
                                onChange={(e) => updateItem(section.id, item.id, 'description', e.target.value)}
-                               className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0 w-full" 
+                               className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0 w-full"
                              />
                            </td>
                            <td className="px-4 py-2">
-                             <Input 
-                               value={item.unit} 
+                             <Input
+                               value={item.unit}
                                onChange={(e) => updateItem(section.id, item.id, 'unit', e.target.value)}
-                               className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0 text-center w-full" 
+                               className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0 text-center w-full"
                              />
                            </td>
                            <td className="px-4 py-2">
-                             <Input 
+                             <Input
                                type="number"
-                               value={item.quantity} 
+                               value={item.quantity}
                                onChange={(e) => updateItem(section.id, item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                               className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0 text-right w-full" 
+                               className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0 text-right w-full"
                              />
                            </td>
                            <td className="px-4 py-2">
-                             <Input 
+                             <Input
                                type="number"
-                               value={item.unit_price} 
+                               value={item.unit_price}
                                onChange={(e) => updateItem(section.id, item.id, 'unit_price', parseFloat(e.target.value) || 0)}
-                               className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0 text-right w-full" 
+                               className="h-8 border-0 bg-transparent p-0 focus-visible:ring-0 text-right w-full"
                              />
                            </td>
                            <td className="px-4 py-2 text-right font-medium">
                              €{(item.total || 0).toFixed(2)}
                            </td>
                            <td className="px-4 py-2 text-center">
-                             <Button 
-                                variant="ghost" 
-                                size="icon" 
+                             <Button
+                                variant="ghost"
+                                size="icon"
                                 className="h-6 w-6 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"
                                 onClick={() => deleteItem(section.id, item.id)}
                               >
@@ -490,7 +496,7 @@ export default function QuoteEditor() {
                             <TabsTrigger value="catalog">{t('fromCatalog')}</TabsTrigger>
                             <TabsTrigger value="labor">{t('labor')}</TabsTrigger>
                           </TabsList>
-                          
+
                           <TabsContent value="manual" className="space-y-4 py-4">
                             <div className="grid gap-2">
                               <label className="text-sm font-medium">{t('description')}</label>
@@ -503,7 +509,7 @@ export default function QuoteEditor() {
                                   <SelectTrigger id="unit"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="un">un</SelectItem>
-                                    <SelectItem value="m2">m²</SelectItem>
+                                    <SelectItem value="m2">m2</SelectItem>
                                     <SelectItem value="ml">ml</SelectItem>
                                     <SelectItem value="kg">kg</SelectItem>
                                   </SelectContent>
@@ -519,11 +525,10 @@ export default function QuoteEditor() {
                               </div>
                             </div>
                             <Button className="w-full mt-4" onClick={() => {
-                                // Simplified adding logic for prototype manual entry
                                 const desc = (document.getElementById('desc') as HTMLInputElement).value;
                                 const qty = parseFloat((document.getElementById('qty') as HTMLInputElement).value);
                                 const price = parseFloat((document.getElementById('price') as HTMLInputElement).value);
-                                
+
                                 addItem(section.id, {
                                   id: generateId(),
                                   description: desc || 'New Item',
@@ -569,7 +574,7 @@ export default function QuoteEditor() {
                                     description: `${l.trade} - ${l.name}`,
                                     unit: l.unit,
                                     quantity: 1,
-                                    unit_price: l.price_lux, // Default to LUX for now
+                                    unit_price: l.price_lux,
                                     total: l.price_lux,
                                     item_type: 'labor'
                                   })}
@@ -591,8 +596,8 @@ export default function QuoteEditor() {
               </Card>
             ))}
 
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full border-dashed py-8 text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50"
               onClick={addSection}
             >
@@ -604,8 +609,8 @@ export default function QuoteEditor() {
              <CardContent className="p-6 space-y-4">
                <div>
                  <label className="text-sm font-medium text-slate-700 mb-2 block">{t('notes')}</label>
-                 <Textarea 
-                    placeholder="Add notes visible to client..." 
+                 <Textarea
+                    placeholder="Add notes visible to client..."
                     value={quote.notes || ''}
                     onChange={(e) => setQuote({...quote, notes: e.target.value})}
                  />
@@ -626,8 +631,8 @@ export default function QuoteEditor() {
                  </div>
                  <div>
                    <label className="text-sm font-medium text-slate-700 mb-2 block">{t('paymentConditions')}</label>
-                   <Input 
-                      defaultValue="30% upfront, 70% on completion" 
+                   <Input
+                      value={quote.payment_conditions || settings.default_payment_conditions || ''}
                       onChange={(e) => setQuote({...quote, payment_conditions: e.target.value})}
                    />
                  </div>
@@ -646,52 +651,52 @@ export default function QuoteEditor() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-500">{t('materials')}</span>
-                  <span>€{(quote.total_materials || 0).toFixed(2)}</span>
+                  <span>€{(calculatedTotals.total_materials || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">{t('labor')}</span>
-                  <span>€{(quote.total_labor || 0).toFixed(2)}</span>
+                  <span>€{(calculatedTotals.total_labor || 0).toFixed(2)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-medium">
                   <span>{t('subtotal')}</span>
-                  <span>€{(quote.subtotal || 0).toFixed(2)}</span>
+                  <span>€{(calculatedTotals.subtotal || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-500">
                   <span>{t('discount')} %</span>
-                  <Input 
-                    type="number" 
-                    className="w-16 h-7 text-right" 
+                  <Input
+                    type="number"
+                    className="w-16 h-7 text-right"
                     value={quote.discount_percentage}
                     onChange={(e) => setQuote({...quote, discount_percentage: parseFloat(e.target.value) || 0})}
                   />
                 </div>
-                {(quote.discount_amount || 0) > 0 && (
+                {(calculatedTotals.discount_amount || 0) > 0 && (
                   <div className="flex justify-between text-red-500 text-xs">
                      <span></span>
-                     <span>-€{(quote.discount_amount || 0).toFixed(2)}</span>
+                     <span>-€{(calculatedTotals.discount_amount || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center text-slate-500">
                   <span>{t('iva')} %</span>
-                  <Input 
-                    type="number" 
-                    className="w-16 h-7 text-right" 
+                  <Input
+                    type="number"
+                    className="w-16 h-7 text-right"
                     value={quote.iva_rate}
                     onChange={(e) => setQuote({...quote, iva_rate: parseFloat(e.target.value) || 0})}
                   />
                 </div>
                 <div className="flex justify-between text-slate-500 text-xs">
                      <span></span>
-                     <span>€{(quote.iva_amount || 0).toFixed(2)}</span>
+                     <span>€{(calculatedTotals.iva_amount || 0).toFixed(2)}</span>
                   </div>
               </div>
               <Separator />
               <div className="flex justify-between items-end">
                 <span className="font-bold text-xl text-slate-900">{t('total')}</span>
-                <span className="font-bold text-2xl text-blue-600">€{(quote.total || 0).toFixed(2)}</span>
+                <span className="font-bold text-2xl text-blue-600">€{(calculatedTotals.total || 0).toFixed(2)}</span>
               </div>
-              
+
               <Button className="w-full bg-blue-600 hover:bg-blue-700" size="lg" onClick={handleSave}>
                 {t('save')}
               </Button>

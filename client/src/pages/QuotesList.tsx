@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useLanguage } from "@/lib/i18n";
 import { useApp } from "@/lib/store";
@@ -5,13 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
 export default function QuotesList() {
   const { t } = useLanguage();
   const { quotes } = useApp();
+  const [search, setSearch] = useState('');
+
+  const filtered = quotes.filter(q => {
+    const term = search.toLowerCase();
+    if (!term) return true;
+    return (
+      q.client_name.toLowerCase().includes(term) ||
+      q.quote_number.toLowerCase().includes(term) ||
+      q.client_address.toLowerCase().includes(term) ||
+      q.status.toLowerCase().includes(term)
+    );
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -39,8 +52,10 @@ export default function QuotesList() {
 
       <div className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm max-w-md">
         <Search className="w-4 h-4 text-slate-400 ml-2" />
-        <Input 
-          placeholder={t('search')} 
+        <Input
+          placeholder={t('search')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           className="border-0 shadow-none focus-visible:ring-0 h-9"
         />
       </div>
@@ -58,7 +73,7 @@ export default function QuotesList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {quotes.map((quote) => (
+            {filtered.map((quote) => (
               <TableRow key={quote.id} className="cursor-pointer hover:bg-slate-50">
                 <TableCell className="font-medium text-blue-600">
                   <Link href={`/app/quotes/${quote.id}`}>{quote.quote_number}</Link>
@@ -73,17 +88,17 @@ export default function QuotesList() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right font-bold">
-                  €{quote.total.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
+                  €{(quote.total || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell className="text-right hidden sm:table-cell text-slate-500">
                   {new Date(quote.created_at).toLocaleDateString()}
                 </TableCell>
               </TableRow>
             ))}
-            {quotes.length === 0 && (
+            {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  No quotes found. Create your first one!
+                  {search ? 'No quotes match your search.' : 'No quotes found. Create your first one!'}
                 </TableCell>
               </TableRow>
             )}
