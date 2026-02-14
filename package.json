@@ -1,6 +1,7 @@
 {
-  "name": "rest-express",
+  "name": "orcapro",
   "version": "1.0.0",
+  "description": "OrçaPro — Ferramenta de orçamentos para construção, bilingue (PT/FR), com React, Express e TailwindCSS.",
   "type": "module",
   "license": "MIT",
   "scripts": {
