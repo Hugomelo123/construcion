@@ -2,36 +2,23 @@ import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useLanguage } from "@/lib/i18n";
 import { useApp } from "@/lib/store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Trash2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Plus, Search, Trash2, Package } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 const CATEGORIES = [
-  'Carrelage/Cerâmica',
-  'Peinture/Tintas',
-  'Colles et Mortiers/Cimentos',
-  'Plomberie/Canalização',
-  'Électricité/Eletricidade',
-  'Bois/Madeiras',
-  'Autre/Outros',
+  'Carrelage/Cerâmica', 'Peinture/Tintas', 'Colles et Mortiers/Cimentos',
+  'Étanchéité/Impermeabilização', 'Sols/Pavimentos', 'Plomberie/Canalização',
+  'Électricité/Eletricidade', 'Quincaillerie/Ferragens', 'Isolation/Isolamento',
+  'Bois/Madeiras', 'Autre/Outros',
 ];
 
 export default function MaterialsList() {
@@ -39,149 +26,148 @@ export default function MaterialsList() {
   const { materials, addMaterial, deleteMaterial } = useApp();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
-  const [newMat, setNewMat] = useState({ name: '', category: CATEGORIES[0], unit: 'un', cost_price: 0, sell_price: 0 });
+  const [catFilter, setCatFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [newMat, setNewMat] = useState({ name: '', category: CATEGORIES[0], unit: 'un', cost_price: 0, sell_price: 0, supplier: '', reference: '' });
 
   const filtered = materials.filter(m => {
     const term = search.toLowerCase();
-    if (!term) return true;
-    return m.name.toLowerCase().includes(term) || m.category.toLowerCase().includes(term);
+    const matchSearch = !term || m.name.toLowerCase().includes(term) || m.category.toLowerCase().includes(term);
+    const matchCat = catFilter === 'all' || m.category === catFilter;
+    return matchSearch && matchCat;
   });
 
   const handleAdd = () => {
-    if (!newMat.name.trim()) {
-      toast({ title: "Error", description: "Name is required.", variant: "destructive" });
-      return;
-    }
-    addMaterial({
-      id: Math.random().toString(36).substr(2, 9),
-      ...newMat,
-      category: newMat.category as any,
-    });
-    setNewMat({ name: '', category: CATEGORIES[0], unit: 'un', cost_price: 0, sell_price: 0 });
+    if (!newMat.name.trim()) { toast({ title: t('error'), description: t('required'), variant: "destructive" }); return; }
+    addMaterial({ id: Math.random().toString(36).substr(2, 9), ...newMat, category: newMat.category as any });
+    setNewMat({ name: '', category: CATEGORIES[0], unit: 'un', cost_price: 0, sell_price: 0, supplier: '', reference: '' });
     setDialogOpen(false);
-    toast({ title: t('save'), description: "Material added." });
+    toast({ title: t('success'), description: t('materialAdded') });
   };
 
   return (
     <Layout>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('materials')}</h1>
-          <p className="text-slate-500">Manage your material catalog and prices.</p>
+          <h1 className="text-2xl font-bold text-[#0f172a]">{t('materials')}</h1>
+          <p className="text-sm text-[#475569] mt-1">{t('manageMaterials')}</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              {t('addMaterial')}
-            </Button>
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-md text-sm font-medium transition-colors shadow-sm">
+              <Plus className="w-4 h-4" /> {t('addMaterial')}
+            </button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t('addMaterial')}</DialogTitle>
-            </DialogHeader>
+          <DialogContent className="sm:max-w-lg rounded-xl">
+            <DialogHeader><DialogTitle>{t('addMaterial')}</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">{t('name')} *</label>
-                <Input value={newMat.name} onChange={(e) => setNewMat({ ...newMat, name: e.target.value })} placeholder="Material name" />
+              <div className="grid gap-1.5">
+                <label className="text-sm font-medium text-[#475569]">{t('name')} <span className="text-red-500">*</span></label>
+                <Input value={newMat.name} onChange={(e) => setNewMat({ ...newMat, name: e.target.value })} placeholder="Ex: Carrelage 60x60" />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">{t('category')}</label>
+                <div className="grid gap-1.5">
+                  <label className="text-sm font-medium text-[#475569]">{t('category')}</label>
                   <Select value={newMat.category} onValueChange={(v) => setNewMat({ ...newMat, category: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.split('/')[0]}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">{t('unit')}</label>
+                <div className="grid gap-1.5">
+                  <label className="text-sm font-medium text-[#475569]">{t('unit')}</label>
                   <Select value={newMat.unit} onValueChange={(v) => setNewMat({ ...newMat, unit: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="un">un</SelectItem>
-                      <SelectItem value="m2">m2</SelectItem>
-                      <SelectItem value="ml">ml</SelectItem>
-                      <SelectItem value="kg">kg</SelectItem>
-                      <SelectItem value="L">L</SelectItem>
+                      {['un', 'm²', 'ml', 'kg', 'L', 'vg'].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">{t('cost')}</label>
-                  <Input type="number" value={newMat.cost_price} onChange={(e) => setNewMat({ ...newMat, cost_price: parseFloat(e.target.value) || 0 })} />
+                <div className="grid gap-1.5">
+                  <label className="text-sm font-medium text-[#475569]">{t('cost')} (€)</label>
+                  <Input type="number" step="0.01" value={newMat.cost_price} onChange={(e) => setNewMat({ ...newMat, cost_price: parseFloat(e.target.value) || 0 })} />
                 </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">{t('price')}</label>
-                  <Input type="number" value={newMat.sell_price} onChange={(e) => setNewMat({ ...newMat, sell_price: parseFloat(e.target.value) || 0 })} />
+                <div className="grid gap-1.5">
+                  <label className="text-sm font-medium text-[#475569]">{t('sellPrice')} (€)</label>
+                  <Input type="number" step="0.01" value={newMat.sell_price} onChange={(e) => setNewMat({ ...newMat, sell_price: parseFloat(e.target.value) || 0 })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                  <label className="text-sm font-medium text-[#475569]">{t('supplier')}</label>
+                  <Input value={newMat.supplier} onChange={(e) => setNewMat({ ...newMat, supplier: e.target.value })} />
+                </div>
+                <div className="grid gap-1.5">
+                  <label className="text-sm font-medium text-[#475569]">{t('reference')}</label>
+                  <Input value={newMat.reference} onChange={(e) => setNewMat({ ...newMat, reference: e.target.value })} />
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">{t('save')}</Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('cancel')}</Button>
+              <Button onClick={handleAdd} className="bg-[#2563eb] hover:bg-[#1d4ed8]">{t('save')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm max-w-md">
-        <Search className="w-4 h-4 text-slate-400 ml-2" />
-        <Input
-          placeholder={t('search')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border-0 shadow-none focus-visible:ring-0 h-9"
-        />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 flex-1 max-w-md">
+          <Search className="w-4 h-4 text-[#94a3b8]" />
+          <input type="text" placeholder={t('search')} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-[#94a3b8]" />
+        </div>
+        <Select value={catFilter} onValueChange={setCatFilter}>
+          <SelectTrigger className="w-48 bg-white"><SelectValue placeholder={t('allCategories')} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('allCategories')}</SelectItem>
+            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.split('/')[0]}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="rounded-md border bg-white shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow>
-              <TableHead>{t('name')}</TableHead>
-              <TableHead className="hidden md:table-cell">{t('category')}</TableHead>
-              <TableHead className="w-[80px]">{t('unit')}</TableHead>
-              <TableHead className="text-right">{t('cost')}</TableHead>
-              <TableHead className="text-right font-bold">{t('price')}</TableHead>
-              <TableHead className="w-[100px] text-right">{t('actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell className="hidden md:table-cell text-slate-500">
-                  <Badge variant="outline" className="font-normal text-xs">{item.category.split('/')[0]}</Badge>
-                </TableCell>
-                <TableCell>{item.unit}</TableCell>
-                <TableCell className="text-right text-slate-500">€{item.cost_price}</TableCell>
-                <TableCell className="text-right font-bold text-blue-600">€{item.sell_price}</TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-slate-400 hover:text-red-600"
-                    onClick={() => deleteMaterial(item.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  {search ? 'No materials match your search.' : 'No materials yet.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {filtered.length > 0 ? (
+        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+          <div className="table-scroll">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-[#f8fafc]">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#94a3b8] uppercase tracking-wider">{t('name')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#94a3b8] uppercase tracking-wider hidden md:table-cell">{t('category')}</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-[#94a3b8] uppercase tracking-wider w-20">{t('unit')}</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-[#94a3b8] uppercase tracking-wider">{t('cost')}</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-[#94a3b8] uppercase tracking-wider">{t('sellPrice')}</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-[#94a3b8] uppercase tracking-wider w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((m) => (
+                  <tr key={m.id} className="border-b border-slate-100 hover:bg-[#f0f7ff] transition-colors">
+                    <td className="px-4 py-3 font-medium text-[#0f172a]">{m.name}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-[#475569]">{m.category.split('/')[0]}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center text-[#475569]">{m.unit}</td>
+                    <td className="px-4 py-3 text-right text-[#475569] tabular-nums">€{m.cost_price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-blue-600 tabular-nums">€{m.sell_price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => { if (confirm(t('deleteConfirm'))) { deleteMaterial(m.id); toast({ title: t('success'), description: t('materialDeleted') }); }}} className="p-1.5 text-slate-400 hover:text-red-600 rounded-md hover:bg-red-50 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-slate-200 py-16 text-center">
+          <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-[#0f172a]">{search || catFilter !== 'all' ? t('noResults') : t('noMaterials')}</h3>
+          <p className="text-sm text-[#94a3b8] mt-1">{t('noMaterialsDesc')}</p>
+        </div>
+      )}
     </Layout>
   );
 }
